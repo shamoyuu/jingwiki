@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>出错了</title>
+    <style>
+        div {
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        p {
+            display: none;
+        }
+    </style>
+    <script>
+        console.info("<%= message%>");
+        console.info("<%= error.status%>");
+    </script>
+</head>
+
+<body>
+    <div>
+        <img src="http://jingwiki.bj.bcebos.com/backend/img/404.jpg" />
+    </div>
+    <p>
+        <%= error.stack%>
+    </p>
+</body>
+
+</html>
