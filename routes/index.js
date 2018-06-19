@@ -1,14 +1,43 @@
-var express = require('express');
-var router = express.Router();
-
-var schedule = require('node-schedule');
-var request = require('request');
+let router = require('express').Router();
 
 
+/**
+ * 首页
+ */
 router.get('/', function (req, res, next) {
-    res.render('index', {
-        title: '我的第一个express项目'
-    });
+    res.redirect('/view/0');
 });
+
+/**
+ * 阅读页
+ */
+router.get('/view/:id', function (req, res, next) {
+    console.info(req.params.id);
+    res.render('index');
+});
+
+/**
+ * 文章页
+ */
+router.get('/text', function (req, res, next) {
+    res.render('view');
+});
+
+/**
+ * 编辑页
+ */
+router.get('/edit', function (req, res, next) {
+    console.info(req.params.id);
+    res.render('edit');
+});
+
+/**
+ * 新增页
+ */
+router.get('/new', function (req, res, next) {
+    console.info(req.params.id);
+    res.render('new');
+});
+
 
 module.exports = router;

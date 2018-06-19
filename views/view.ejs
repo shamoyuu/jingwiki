@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Document</title>
+    <link rel="stylesheet" href="http://jingwiki.bj.bcebos.com/backend/css/reset.css" />
+    <link rel="stylesheet" href="http://jingwiki.bj.bcebos.com/backend/editor-md/css/editormd.min.css" />
+
+    <script src="http://libs.baidu.com/jquery/2.0.0/jquery.min.js"></script>
+    <script src="http://jingwiki.bj.bcebos.com/backend/js/common.js" charset="utf-8"></script>
+    <script src="http://jingwiki.bj.bcebos.com/backend/editor-md/lib/marked.min.js" charset="utf-8"></script>
+    <script src="http://jingwiki.bj.bcebos.com/backend/editor-md/lib/prettify.min.js" charset="utf-8"></script>
+    <script src="http://jingwiki.bj.bcebos.com/backend/editor-md/lib/raphael.min.js" charset="utf-8"></script>
+    <script src="http://jingwiki.bj.bcebos.com/backend/editor-md/lib/underscore.min.js" charset="utf-8"></script>
+    <script src="http://jingwiki.bj.bcebos.com/backend/editor-md/lib/sequence-diagram.min.js" charset="utf-8"></script>
+    <script src="http://jingwiki.bj.bcebos.com/backend/editor-md/lib/flowchart.min.js" charset="utf-8"></script>
+    <script src="http://jingwiki.bj.bcebos.com/backend/editor-md/lib/jquery.flowchart.min.js" charset="utf-8"></script>
+    <script src="http://jingwiki.bj.bcebos.com/backend/editor-md/editormd.min.js" charset="utf-8"></script>
+
+    <style>
+        #editorbody {
+            box-sizing: border-box;
+            width: 95%;
+            margin: 0 auto 50px auto;
+        }
+
+        .title {
+            box-sizing: border-box;
+            display: block;
+            width: 95%;
+            padding: 20px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 class="title"></h1>
+    <div id="editorbody">
+        <textarea style="display:none;"></textarea>
+    </div>
+    <script type="text/javascript">
+
+        $(function () {
+            var editor;
+            var path = "";
+
+            $.getJSON("/api/list", function (data) {
+                var lastPid = -1;
+                var id = getUrlParam("id");
+                var num = 0;
+                while (true) {
+                    for (var i = 0; i < data.length; i++) {
+                        if (lastPid == -1) {
+                            if (id == data[i].id) {
+                                lastPid = data[i].pId;
+                                path = Base64.encode(data[i].name) + ".txt";
+                                break;
+                            }
+                        }
+                        else {
+                            if (lastPid == data[i].id) {
+                                lastPid = data[i].pId;
+                                if (lastPid != 0) {
+                                    path = Base64.encode(data[i].name) + "/" + path;
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    if (lastPid == 0) break;
+
+                    if (++num > 10) break;
+                }
+
+                $.get("http://jingwiki.bj.bcebos.com/data/" + path + "?t=" + Date.now(), function (data) {
+                    var textInfo = JSON.parse(data.substr(0, data.indexOf("\n")));
+                    $(".title").text(textInfo.title)
+
+                    data = data.substr(data.indexOf("\n") + 1, data.length);
+                    editor = editormd.markdownToHTML("editorbody", {
+                        markdown: data,
+                        htmlDecode: "style,script,iframe",
+                        width: "90%",
+                        tocm: true,    // Using [TOCM]
+                        emoji: false,
+                        taskList: true,
+                        tex: true,  // 默认不解析
+                        flowChart: true,  // 默认不解析
+                        sequenceDiagram: true,  // 默认不解析
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+
+</html>

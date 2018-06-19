@@ -1,13 +1,206 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 
 <head>
-    <meta charset="UTF-8">
-    <title>静-Wiki</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Document</title>
+    <link rel="stylesheet" href="http://jingwiki.bj.bcebos.com/backend/css/reset.css" />
+    <link rel="stylesheet" href="http://jingwiki.bj.bcebos.com/backend/editor-md/css/editormd.min.css" />
+    <link rel="stylesheet" href="http://jingwiki.bj.bcebos.com/backend/lib/ztree/css/zTreeStyle/zTreeStyle.css" />
+
+    <script src="http://libs.baidu.com/jquery/2.0.0/jquery.min.js"></script>
+    <script src="http://jingwiki.bj.bcebos.com/backend/editor-md/editormd.min.js" charset="utf-8"></script>
+    <script src="http://jingwiki.bj.bcebos.com/backend/lib/ztree/js/jquery.ztree.core.js" charset="utf-8"></script>
+    <style>
+        html,
+        body,
+        .main-body {
+            box-sizing: border-box;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+            font-size: 0;
+        }
+
+        div {
+            padding: 0;
+            margin: 0;
+        }
+
+        .left {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 300px;
+            height: 100%;
+        }
+
+        .right {
+            height: 100%;
+            margin-left: 300px;
+            background-color: #eee;
+        }
+
+        .ztree li span.button.switch.level0 {
+            visibility: hidden;
+            width: 1px;
+        }
+
+        .ztree li ul.level0 {
+            padding: 0;
+            background: none;
+        }
+
+        .ztree-menu {
+            display: none;
+            position: absolute;
+            top: 0;
+            padding: 2px 15px;
+            font-size: 14px;
+        }
+
+        .ztree-menu ul li {
+            margin: 1px 0;
+            padding: 5px 10px;
+            background-color: #DFDFDF;
+            cursor: pointer;
+        }
+    </style>
 </head>
 
 <body>
-    首页
+    <div class="main-body">
+        <div class="left">
+            <ul id="tree" class="ztree"></ul>
+        </div>
+        <div class="right">
+            <iframe id="iframe" width="100%" height="100%" src="" frameborder="0"></iframe>
+        </div>
+    </div>
+    <div class="ztree-menu">
+        <ul>
+            <li class="ztree-menu-edit">编辑</li>
+            <li class="ztree-menu-new-file">新增文章</li>
+            <li class="ztree-menu-new-floder">新增文件夹</li>
+        </ul>
+    </div>
+    <script>
+        var ztree;
+        $(function () {
+            var arr = window.location.href.split("?")[0].split("/");
+            var id = arr[arr.length - 1];
+            $("#iframe").attr("src", "/text?id=" + id);
+            $.getJSON("/api/list", function (data) {
+                var setting = {
+                    data: {
+                        simpleData: {
+                            enable: true
+                        }
+                    },
+                    view: {
+                        dblClickExpand: false
+                    },
+                    callback: {
+                        onClick: function (e, treeId, treeNode) {
+                            if (treeNode.isParent) {
+                                ztree.expandNode(treeNode);
+                            }
+                            else {
+                                history.replaceState(null, null, "/view/" + treeNode.id);
+                                $("#iframe").attr("src", "/text?id=" + treeNode.id);
+                            }
+                        },
+                        onRightClick: function (event, treeId, treeNode) {
+                            if (treeNode) {
+                                ztree.selectNode(treeNode);
+                                showRMenu(event.clientX, event.clientY);
+                            }
+                        }
+                    }
+                };
+                ztree = $.fn.zTree.init($("#tree"), setting, data);
+                ztree.expandAll(true);
+                console.info(ztree)
+                ztree.selectNode(ztree.getNodeByParam("id", id));
+
+
+                function showRMenu(x, y) {
+                    if (ztree.getSelectedNodes()[0].isParent == true) {
+                        $(".ztree-menu-edit").hide();
+                        $(".ztree-menu-new-file").show();
+                        $(".ztree-menu-new-floder").show();
+                    } else {
+                        $(".ztree-menu-edit").show();
+                        $(".ztree-menu-new-file").hide();
+                        $(".ztree-menu-new-floder").hide();
+                    }
+                    y += document.body.scrollTop;
+                    x += document.body.scrollLeft;
+                    $(".ztree-menu").css({ "top": y + "px", "left": x + "px" }).show();
+
+                    $("body").on("mousedown.ztree", function (event) {
+                        if ($(event.target).closest(".ztree-menu").length == 0) {
+                            $(".ztree-menu").hide();
+                        }
+                    });
+                }
+            });
+            $(".ztree-menu-edit").on("click.ztree", function () {
+                $(".ztree-menu").hide();
+                window.open("/edit?id=" + ztree.getSelectedNodes()[0].id);
+            });
+            $(".ztree-menu-new-file").on("click.ztree", function () {
+                $(".ztree-menu").hide();
+                setTimeout(function () {
+                    var filename = prompt("请输入文件名称");
+                    if (filename != null) {
+                        filename = filename.trim();
+                        if (filename == "") {
+                            alert("请输入文件名称");
+                        } else {
+                            $.post("/api/add-file", {
+                                parentid: ztree.getSelectedNodes()[0].id,
+                                name: filename
+                            }, function (data) {
+                                if (data.code == 101) {
+                                    ztree.addNodes(ztree.getSelectedNodes()[0], { id: data.data, pId: ztree.getSelectedNodes()[0].id, isParent: false, name: filename });
+                                }
+                                else {
+                                    alert(data.message);
+                                }
+                            });
+                        }
+                    }
+                }, 0);
+            });
+            $(".ztree-menu-new-floder").on("click.ztree", function () {
+                $(".ztree-menu").hide();
+                setTimeout(function () {
+                    var floder = prompt("请输入文件夹名称");
+                    if (floder != null) {
+                        floder = floder.trim();
+                        if (floder == "") {
+                            alert("请输入文件夹名称");
+                        } else {
+                            $.post("/api/add-floder", {
+                                parentid: ztree.getSelectedNodes()[0].id,
+                                name: floder
+                            }, function (data) {
+                                if (data.code == 101) {
+                                    ztree.addNodes(ztree.getSelectedNodes()[0], { id: data.data, pId: ztree.getSelectedNodes()[0].id, isParent: true, name: floder });
+                                }
+                                else {
+                                    alert(data.message);
+                                }
+                            });
+                        }
+                    }
+                }, 0);
+            });
+        })
+    </script>
 </body>
 
 </html>

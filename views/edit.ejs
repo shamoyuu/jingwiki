@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>编写文章</title>
+    <link rel="stylesheet" href="http://jingwiki.bj.bcebos.com/backend/css/reset.css" />
+    <link rel="stylesheet" href="http://jingwiki.bj.bcebos.com/backend/editor-md/css/editormd.min.css" />
+    <script src="http://libs.baidu.com/jquery/2.0.0/jquery.min.js"></script>
+    <script src="http://jingwiki.bj.bcebos.com/backend/editor-md/editormd.min.js" charset="utf-8"></script>
+    <script src="http://jingwiki.bj.bcebos.com/backend/js/common.js" charset="utf-8"></script>
+</head>
+
+<body>
+    <div id="editormd">
+        <textarea style="display:none;"></textarea>
+    </div>
+    <button onclick="foo()">保存</button>
+    <script type="text/javascript">
+        var editor;
+        var path = "";
+
+        $(function () {
+            $.getJSON("/api/list", function (data) {
+                console.info(data);
+                var lastPid = -1;
+                var id = getUrlParam("id");
+                while (true) {
+                    for (var i = 0; i < data.length; i++) {
+                        if (lastPid == -1) {
+                            if (id == data[i].id) {
+                                lastPid = data[i].pId;
+                                path = Base64.encode(data[i].name) + ".txt";
+                                break;
+                            }
+                        }
+                        else {
+                            if (lastPid == data[i].id) {
+                                lastPid = data[i].pId;
+                                if (lastPid != 0) {
+                                    path = Base64.encode(data[i].name) + "/" + path;
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    if (lastPid == 0) break;
+                }
+                console.info(path)
+                var content = "";
+                $.ajax({
+                    url: "http://jingwiki.bj.bcebos.com/data/" + path + "?t=" + Date.now(),
+                    type: "get",
+                    success: function (data) {
+                        var textInfo = JSON.parse(data.substr(0, data.indexOf("\n")));
+                        $(".title").text(textInfo.title)
+                        content = data.substr(data.indexOf("\n") + 1, data.length);
+                    },
+                    complete: function () {
+                        editor = editormd({
+                            id: "editormd",
+                            markdown: content,
+                            width: "95%",
+                            height: 640,
+                            path: "http://jingwiki.bj.bcebos.com/backend/editor-md/lib/",
+                            imageUpload: true,
+                            imageFormats: ["jpg", "jpeg", "gif", "png", "bmp", "webp"],
+                            imageUploadURL: "/api/upload",
+                            /*上传图片成功后可以做一些自己的处理*/
+                            onload: function () {
+
+                            },
+                            toolbarIcons: function () {
+                                return ["undo", "redo", "|", "bold", "del", "italic", "quote", "|",
+                                    "h1", "h2", "h3", "h4", "h5", "h6", "|", "list-ul", "list-ol", "hr", "|",
+                                    "link", "reference-link", "image", "code", "preformatted-text", "code-block",
+                                    "table", "datetime", "html-entities", "pagebreak", "||",
+                                    "watch", "fullscreen", "preview", "search", "help"];
+                            },
+                        });
+                    }
+                });
+            });
+
+
+            /**
+                 * 粘贴上传图片
+                 */
+            $("#editormd").on('paste', function (ev) {
+                var data = ev.clipboardData;
+                var items = (event.clipboardData || event.originalEvent.clipboardData).items;
+                for (var index in items) {
+                    var item = items[index];
+                    if (item.kind === 'file') {
+                        var blob = item.getAsFile();
+                        var reader = new FileReader();
+                        reader.onload = function (event) {
+                            var base64 = event.target.result;
+                            //ajax上传图片
+                            $("#editormd .editormd-container-mask").css("background-color", "rgba(255, 255, 255, 0.8)").show();
+                            $.post("/api/upload-base64", { img: base64 }, function (res) {
+                                if (res.success === 1) {
+                                    editor.insertValue("\n![图片](" + res.url + ")\n");
+                                }
+                                $("#editormd .editormd-container-mask").css("background-color", "#fff").hide();
+                            });
+                        };
+                        reader.readAsDataURL(blob);
+                    }
+                }
+            });
+        });
+
+        function foo() {
+            var text = JSON.stringify({
+                type: "markdown",
+                title: "我是一个标题",
+                path: path
+            }) + "\n" + editor.getMarkdown();
+            $.post("/api/save", { text: text }, function () {
+                alert("保存成功");
+            });
+        }
+    </script>
+</body>
+
+</html>
